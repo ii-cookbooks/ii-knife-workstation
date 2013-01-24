@@ -1,0 +1,13 @@
+<% if node.has_key?("ec2") -%>
+deb http://<%= node['ec2']['placement_availability_zone'].chop %>.ec2.archive.ubuntu.com/ubuntu/ precise multiverse
+deb-src http://<%= node['ec2']['placement_availability_zone'].chop %>.ec2.archive.ubuntu.com/ubuntu/ precise multiverse
+deb http://<%= node['ec2']['placement_availability_zone'].chop %>.ec2.archive.ubuntu.com/ubuntu/ precise-updates multiverse
+deb-src http://<%= node['ec2']['placement_availability_zone'].chop %>.ec2.archive.ubuntu.com/ubuntu/ precise-updates multiverse
+<% else -%>
+deb http://us.archive.ubuntu.com/ubuntu/ precise multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ precise multiverse
+deb http://us.archive.ubuntu.com/ubuntu/ precise-updates multiverse
+deb-src http://us.archive.ubuntu.com/ubuntu/ precise-updates multiverse
+<% end -%>
+deb http://security.ubuntu.com/ubuntu precise-security multiverse
+deb-src http://security.ubuntu.com/ubuntu precise-security multiverse

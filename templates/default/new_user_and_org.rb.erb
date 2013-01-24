@@ -1,0 +1,138 @@
+#!/opt/chef/embedded/bin/ruby
+require 'rubygems'
+require 'mechanize'
+require 'mixlib/cli'
+require 'fileutils'
+
+class CreateOPC
+  include Mixlib::CLI
+
+  attr_reader :private_key, :validator_key, :knife_rb
+  option :username, 
+    :short => "-u USERNAME",
+    :long  => "--username USERNAME",
+    :required => true,
+    :description => "Chef Username"
+  
+  option :first_name, 
+    :short => "-f FIRST_NAME",
+    :long  => "--first-name FIRST_NAME",
+    :required => false,
+    :default => 'Hippie',
+    :description => "Chef First Name"
+
+  option :last_name, 
+    :short => "-l LAST_NAME",
+    :long  => "--last-name LAST_NAME",
+    :required => true,
+    :default => 'Hacker',
+    :description => "Chef Last Name"
+
+  option :email, 
+    :short => "-e EMAIL",
+    :long  => "--email EMAIL",
+    :required => false,
+    :description => "Email"
+
+  option :password, 
+    :short => "-p PASSWORD",
+    :long  => "--password PASSWORD",
+    :required => true,
+    :description => "Password"
+
+  option :organization, 
+    :short => "-o ORGANIZATION ",
+    :long  => "--organization ORGANIZATION",
+    :required => false,
+    :description => "Organization"
+
+  option :webui_url, 
+    :short => "-w WEBUI_URL ",
+    :long  => "--webui-url WEBUI_URL",
+    :required => false,
+    :default => "https://chef.<%=node['resolver']['search']>%",
+    :description => "Chef Server URL"
+
+  option :output_dir, 
+    :short => "-d OUTPUT_DIR ",
+    :long  => "--chef-url OUTPUT_DIR",
+    :required => false,
+    :default => '.chef',
+    :description => "Where to write the files"
+  
+  option :help,
+    :short => "-h",
+    :long => "--help",
+    :description => "Show this message",
+    :on => :tail,
+    :boolean => true,
+    :show_options => true,
+    :exit => 0
+
+
+  def create
+    agent = Mechanize.new
+    agent.agent.http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    
+    agent.post(
+      "#{config[:webui_url]}/users",
+      {
+        'user[username]' => config[:username],
+        'user[first_name]' => config[:first_name],
+        'user[last_name]' => config[:last_name],
+        'user[email]' => config[:email] ? config[:email] : "#{config[:username]}@#{config[:username]}.com",
+        'user[password]' => config[:password],
+        'user[password_confirmation]' => config[:password],
+        'commit' => 'Submit'
+      })
+    
+    account_created = agent.page.search(
+      '//div[@class="message notice"]/p/text()[contains(.,"Your Private Chef user account has been created.")]'
+      ).first
+    
+    # A bit of help if things don't go well
+    if not account_created
+      validation_errors = agent.page.search '//span[@class="validation-error"]/..'
+      error_messages = agent.page.search '//div[@class="message error"]/p'
+
+      if validation_errors.count > 0
+        validation_errors.each do |ve|
+          puts ve.text.gsub /\W+/, ' ' # get rid of whitespace
+        end
+      elsif error_messages.count > 0
+        error_messages.each do |em|
+          puts em.text.gsub /\W+/, ' ' # get rid of whitespace
+        end
+      else
+        puts em.body
+      end
+      raise 'Account not created'
+    end
+
+    user_regen_url = agent.page.link_with(:href => /_regen_key/).href
+    authenticity_token = agent.page.search(
+      '//meta[@name="csrf-token"]/@content').text
+
+    agent.post("#{config[:webui_url]}/organizations",{
+        'id' => config[:username],
+        'full_name' => config[:username],
+        'authenticity_token' => authenticity_token})
+
+    FileUtils.mkdir_p config[:output_dir]
+    @user_pem=agent.post("#{config[:webui_url]}/users/#{config[:username]}/_regen_key",
+      {'authenticity_token' => authenticity_token})
+    open(::File.join(config[:output_dir],::File.basename(@user_pem.filename)),'w').write(@user_pem.body)
+
+    @org_pem=agent.post("#{config[:webui_url]}/organizations/#{config[:username]}/_regenerate_key",
+      {'_method' => 'put',
+        'authenticity_token' => authenticity_token})
+    open(::File.join(config[:output_dir],::File.basename(@org_pem.filename)),'w').write(@org_pem.body)
+
+    @knife_rb=agent.get("#{config[:webui_url]}/organizations/#{config[:username]}/_knife_config")
+    open(::File.join(config[:output_dir],::File.basename(@knife_rb.filename)),'w').write(@knife_rb.body)
+  end
+end  
+
+opc = CreateOPC.new
+opc.parse_options
+opc.create

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Sublime Text 2
+GenericName=Text Editor
+GenericName[de]=Texteditor
+Comment=Sublime
+TryExec=/opt/SublimeText2/sublime_text
+Exec=/opt/SublimeText2/sublime_text -a %F
+Terminal=false
+Type=Application
+Icon=/opt/SublimeText2/Icon/32x32/sublime_text.png
+Categories=Utility;TextEditor;
+StartupNotify=true
+MimeType=text/plain;

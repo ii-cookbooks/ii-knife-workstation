@@ -1,0 +1,11 @@
+#!/bin/bash
+unset SESSION_MANAGER
+export DISPLAY=:1
+cd /home/<%=node['workstation']['username']%>
+xsetroot -solid black
+vncconfig -iconic &
+startfluxbox &
+lxpanel &
+xset s off off
+fbsetbg /home/<%=node['workstation']['username']%>/.fluxbox/backgrounds/background.png &
+websockify --web /usr/share/novnc 12345 localhost:5901

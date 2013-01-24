@@ -1,0 +1,112 @@
+#!/opt/chef/embedded/bin/ruby
+require 'rubygems'
+require 'mechanize'
+require 'mixlib/cli'
+require 'fileutils'
+
+class RegenValidator
+  include Mixlib::CLI
+
+  attr_reader :private_key, :validator_key, :knife_rb
+  option :username, 
+    :short => "-u USERNAME",
+    :long  => "--username USERNAME",
+    :required => true,
+    :description => "Chef Username"
+
+  option :password, 
+    :short => "-p PASSWORD",
+    :long  => "--password PASSWORD",
+    :required => true,
+    :description => "Password"
+
+  option :organization, 
+    :short => "-o ORGANIZATION ",
+    :long  => "--organization ORGANIZATION",
+    :required => false,
+    :description => "Organization"
+
+  option :chef_url, 
+    :short => "-c CHEF_URL ",
+    :long  => "--chef-url CHEF_URL",
+    :required => false,
+    :default => 'https://chef.<%=node['resolver']['search']%>',
+    :description => "Chef Server URL"
+
+  option :output_dir, 
+    :short => "-d OUTPUT_DIR ",
+    :long  => "--chef-url OUTPUT_DIR",
+    :required => false,
+    :default => '.chef',
+    :description => "Where to write the files"
+  
+  option :help,
+    :short => "-h",
+    :long => "--help",
+    :description => "Show this message",
+    :on => :tail,
+    :boolean => true,
+    :show_options => true,
+    :exit => 0
+
+
+  def regenerate
+    require 'rubygems'
+    require 'mechanize'
+    require 'mixlib/cli'
+    require 'fileutils'
+    agent = Mechanize.new
+    agent.agent.http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+
+    org_name='bar'
+    client_name='workstation5'
+    lp=agent.get("https://chef/login")
+    lf=lp.forms.first
+    lf['name']='ausername'
+    lf['password']='thepassword'
+    p = lf.submit
+
+    agent.page.link_with(:href => /organizations/).click
+    if agent.page.search('//h1/a[@href="/nodes"]/text()').text != org_name
+      agent.page.link_with(:href => /organizations\/#{org_name}\/select/).click
+    end
+
+    authenticity_token = agent.page.search(
+      '//meta[@name="csrf-token"]/@content').text
+
+    @org_pem = agent.post(
+      "https://chef/organizations/#{org_name}/_regenerate_key",
+      {'_method' => 'put','authenticity_token' => authenticity_token})
+
+    agent.get('https://chef/clients')
+    if not agent.page.search("//a[@href=\"/clients/#{client_name}/edit\"]").empty?
+      @client_pem = agent.page.link_with(:href => /clients\/#{client_name}\/edit/).click
+    else
+      nc=agent.get("https://chef/clients/new").forms.first
+      nc['name']=client_name
+      nc.submit
+      @client_pem = agent.page.link_with(:text => /Download API Key/).click
+    end
+
+    f=agent.get('https://chef/groups/admins/edit').forms.first
+    # f.checkbox_with(:name => 'groups[]', :value => 'admins').check
+    f.checkbox_with(:value => client_name).check
+    f.submit
+
+    user_regen_url = agent.page.link_with(:href => /_regen_key/).href
+
+    form=agent.get("https://chef/clients/new").forms.first
+    form['name']='workstation'
+    form.submit
+
+    FileUtils.mkdir_p config[:output_dir]
+    open(::File.join(config[:output_dir],::File.basename(@org_pem.filename)),'w').write(@org_pem.body)
+    open(::File.join(config[:output_dir],'workstation.pem','w').write(@user_pem.body)
+
+    # open(::File.join(config[:output_dir],::File.basename(@knife_rb.filename)),'w').write(@knife_rb.body)
+  end
+end  
+
+opc = RegenValidator.new
+opc.parse_options
+opc.create

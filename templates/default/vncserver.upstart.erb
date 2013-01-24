@@ -1,0 +1,12 @@
+# vnc-server.conf
+
+start on runlevel [2345]
+stop on runlevel [016]
+
+post-start script
+  su <%= node['workstation']['username'] %> -c '/usr/bin/vncserver -name vnc-server -depth 16 -geometry <%=node['workstation']['geometry']%> :1'
+end script
+
+post-stop script
+  su <%= node['workstation']['username'] %> -c '/usr/bin/vncserver -kill :1'
+end script
