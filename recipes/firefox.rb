@@ -15,7 +15,7 @@ end
 
 server_crt = "/usr/local/share/ca-certificates/chefserver.crt"
 remote_file server_crt do
-  source "http://fileserver/chefserver.crt"
+  source "http://fileserver.#{node['resolver']['search']}/chefserver.crt"
   not_if {::File.exists? server_crt}
 end
 
