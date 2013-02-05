@@ -28,12 +28,12 @@ username = node['workstation']['username']
 
 file("/etc/profile.d/Z97-byobu.sh") { action :delete }
 
-include_recipe "knife-workstation::user"
-include_recipe "knife-workstation::packages"
-include_recipe "knife-workstation::ssh"
-include_recipe "knife-workstation::editors"
-include_recipe "knife-workstation::vnc"
-include_recipe "knife-workstation::firefox"
+include_recipe "ii-knife-workstation::user"
+include_recipe "ii-knife-workstation::packages"
+include_recipe "ii-knife-workstation::ssh"
+include_recipe "ii-knife-workstation::editors"
+include_recipe "ii-knife-workstation::vnc"
+include_recipe "ii-knife-workstation::firefox"
 
 template '/usr/local/bin/new_user_and_org' do
   source 'new_user_and_org.rb.erb'
