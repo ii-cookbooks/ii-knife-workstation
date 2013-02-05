@@ -5,11 +5,11 @@ then
   if [ -e /etc/redhat-release ] # this file exists only on rhel/centos derivatives
   then
     echo "Downloading and installing chef for Enterprise Linux"
-    wget http://fileserver/chef-full-x86_64.rpm -O /tmp/chef.rpm
+    wget http://fileserver.training/chef-full-10.16.2-1.x86_64.rpm -O /tmp/chef.rpm
     rpm -i /tmp/chef.rpm
   else
     echo "Downloading and installing chef for Ubuntu"
-    wget http://fileserver/chef-full-x86_64.deb -O /tmp/chef.deb
+    wget http://fileserver.training/chef-full-10.16.2-1.x86_64.deb -O /tmp/chef.deb
     dpkg -i /tmp/chef.deb
   fi
 fi
