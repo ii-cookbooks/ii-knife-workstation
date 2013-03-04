@@ -1,0 +1,67 @@
+<%%bash -c '
+
+if [ ! -e /usr/bin/chef-client ]
+then
+  if [ -e /etc/redhat-release ] # this file exists only on rhel/centos derivatives
+  then
+    echo "Downloading and installing chef for Enterprise Linux"
+    wget http://fileserver.training/<%=node['chef_client']['el5']['filename']%> -O /tmp/chef.rpm
+    rpm -i /tmp/chef.rpm
+  else
+    echo "Downloading and installing chef for Ubuntu"
+    wget http://fileserver.training/<%=node['chef_client']['deb']['filename']%> -O /tmp/chef.deb
+    dpkg -i /tmp/chef.deb
+  fi
+fi
+
+mkdir -p /etc/chef
+
+(
+cat <<'EOP'
+<%%= validation_key %>
+EOP
+) > /tmp/validation.pem
+awk NF /tmp/validation.pem > /etc/chef/validation.pem
+rm /tmp/validation.pem
+chmod 0600 /etc/chef/validation.pem
+
+<%% if @chef_config[:encrypted_data_bag_secret] -%>
+(
+cat <<'EOP'
+<%%= encrypted_data_bag_secret %>
+EOP
+) > /tmp/encrypted_data_bag_secret
+awk NF /tmp/encrypted_data_bag_secret > /etc/chef/encrypted_data_bag_secret
+rm /tmp/encrypted_data_bag_secret
+chmod 0600 /etc/chef/encrypted_data_bag_secret
+<%% end -%>
+
+<%%# Generate Ohai Hints -%>
+<%% unless @chef_config[:knife][:hints].nil? || @chef_config[:knife][:hints].empty? -%>
+mkdir -p /etc/chef/ohai/hints
+
+<%% @chef_config[:knife][:hints].each do |name, hash| -%>
+(
+cat <<'EOP'
+<%%= hash.to_json %>
+EOP
+) > /etc/chef/ohai/hints/<%%= name %>.json
+<%% end -%>
+<%% end -%>
+
+(
+cat <<'EOP'
+<%%= config_content %>
+require "socket"
+node_name                Socket.gethostname
+client_key               "/etc/chef/#{Socket.gethostname}.pem"
+EOP
+) > /etc/chef/client.rb
+
+(
+cat <<'EOP'
+<%%= first_boot.to_json %>
+EOP
+) > /etc/chef/first-boot.json
+
+<%%= start_chef %>'

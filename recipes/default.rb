@@ -53,13 +53,18 @@ end
   end
 end
 
-# I'd like this to be a template... but escaping an erbfile to be an erbfile??
-cookbook_file "/home/#{username}/.chef/bootstrap/training.erb" do
-  source "bootstrap-training.erb"
+# should this be in a chef_client_via_databags cookbook or maybe  a library?
+cc = search('chef',"*:*")
+node.normal['chef_client']['version']=cc.map{|v| v['version']}.flatten.uniq.sort.last
+node.normal['chef_client']['deb'] = search('chef',"version:#{node['chef_client']['version']} && arch:x86_64 && ubuntu:12.04").first
+node.normal['chef_client']['el6'] = search('chef',"version:#{node['chef_client']['version']} && arch:x86_64 && el:6").first
+node.normal['chef_client']['el5'] = search('chef',"version:#{node['chef_client']['version']} && arch:x86_64 && el:5").first
+template "/home/#{username}/.chef/bootstrap/training.erb" do
+  source "bootstrap-training.erb.erb"
 end
 
-log "The workstation is now configured:"
+Chef::Log.info "The workstation is now configured:"
 
 execute "chown -R #{username}:#{username} /home/#{username}"
-log "Login: #{username} Password: #{node['workstation']['password']}"
+Chef::Log.info "Login: #{username} Password: #{node['workstation']['password']}"
 
